@@ -1,0 +1,62 @@
+[project]
+name = "localsec"
+version = "0.1.0"
+description = "An agentic system"
+readme = "README.md"
+authors = [{ name = "Paolo Rechia", email = "paolorechia@gmail.com" }]
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+localsec = "localsec.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.13.6,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.13",
+    "pre-commit>=4.0",
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "ruff>=0.9",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "C4", "ANN", "RUF", "TID", "PTH"]
+
+[tool.ruff.lint.flake8-annotations]
+suppress-none-returning = true
+mypy-init-return = true
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+warn_no_return = true
+show_error_codes = true
+mypy_path = "src"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --cov=localsec --cov-report=term-missing --cov-report=xml"
+
+[tool.coverage.run]
+source = ["localsec"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
