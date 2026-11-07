@@ -7,7 +7,7 @@ import json
 from collections.abc import Callable
 from typing import Any
 
-import httpx
+import httpx2
 import pytest
 
 from localsec.splash import (
@@ -44,21 +44,21 @@ def _completion_payload(**overrides: object) -> dict[str, Any]:
 
 
 def _client(
-    handler: Callable[[httpx.Request], httpx.Response],
+    handler: Callable[[httpx2.Request], httpx2.Response],
     *,
     api_key: str | None = None,
-) -> tuple[SplashClient, httpx.Client]:
-    http_client = httpx.Client(transport=httpx.MockTransport(handler))
+) -> tuple[SplashClient, httpx2.Client]:
+    http_client = httpx2.Client(transport=httpx2.MockTransport(handler))
     return SplashClient(BASE_URL, api_key=api_key, http_client=http_client), http_client
 
 
 def test_ask_sends_the_prompt_and_returns_the_answer() -> None:
     seen: dict[str, Any] = {}
 
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx2.Request) -> httpx2.Response:
         seen["url"] = str(request.url)
         seen["body"] = json.loads(request.content)
-        return httpx.Response(200, json=_completion_payload())
+        return httpx2.Response(200, json=_completion_payload())
 
     client, http_client = _client(handler)
     try:
@@ -76,9 +76,9 @@ def test_ask_sends_the_prompt_and_returns_the_answer() -> None:
 def test_ask_sends_the_system_prompt_and_the_history() -> None:
     seen: dict[str, Any] = {}
 
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx2.Request) -> httpx2.Response:
         seen["body"] = json.loads(request.content)
-        return httpx.Response(200, json=_completion_payload())
+        return httpx2.Response(200, json=_completion_payload())
 
     client, http_client = _client(handler)
     try:
@@ -100,9 +100,9 @@ def test_ask_sends_the_system_prompt_and_the_history() -> None:
 def test_ask_sends_the_requested_options() -> None:
     seen: dict[str, Any] = {}
 
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx2.Request) -> httpx2.Response:
         seen["body"] = json.loads(request.content)
-        return httpx.Response(200, json=_completion_payload())
+        return httpx2.Response(200, json=_completion_payload())
 
     client, http_client = _client(handler)
     try:
@@ -130,9 +130,9 @@ def test_ask_sends_the_requested_options() -> None:
 def test_ask_sends_the_reasoning_controls() -> None:
     seen: dict[str, Any] = {}
 
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx2.Request) -> httpx2.Response:
         seen["body"] = json.loads(request.content)
-        return httpx.Response(200, json=_completion_payload())
+        return httpx2.Response(200, json=_completion_payload())
 
     client, http_client = _client(handler)
     try:
@@ -156,9 +156,9 @@ def test_ask_sends_the_reasoning_controls() -> None:
 def test_ask_leaves_the_reasoning_controls_alone_by_default() -> None:
     seen: dict[str, Any] = {}
 
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx2.Request) -> httpx2.Response:
         seen["body"] = json.loads(request.content)
-        return httpx.Response(200, json=_completion_payload())
+        return httpx2.Response(200, json=_completion_payload())
 
     client, http_client = _client(handler)
     try:
@@ -188,8 +188,8 @@ def test_reply_carries_the_reasoning_trace() -> None:
         ]
     )
 
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json=payload)
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, json=payload)
 
     client, http_client = _client(handler)
     try:
@@ -202,8 +202,8 @@ def test_reply_carries_the_reasoning_trace() -> None:
 
 
 def test_reply_carries_the_splash_metrics() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json=_completion_payload())
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, json=_completion_payload())
 
     client, http_client = _client(handler)
     try:
@@ -236,8 +236,8 @@ def test_reply_keeps_the_payload_as_it_arrived() -> None:
         ]
     )
 
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json=payload)
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, json=payload)
 
     client, http_client = _client(handler)
     try:
@@ -254,9 +254,9 @@ def test_reply_keeps_the_payload_as_it_arrived() -> None:
 def test_extra_reaches_the_request_body() -> None:
     seen: dict[str, Any] = {}
 
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx2.Request) -> httpx2.Response:
         seen["body"] = json.loads(request.content)
-        return httpx.Response(200, json=_completion_payload())
+        return httpx2.Response(200, json=_completion_payload())
 
     client, http_client = _client(handler)
     try:
@@ -269,8 +269,8 @@ def test_extra_reaches_the_request_body() -> None:
 
 
 def test_ask_raises_on_an_api_error() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(
             404,
             json={
                 "error": {
@@ -295,8 +295,8 @@ def test_ask_raises_on_an_api_error() -> None:
 
 
 def test_connection_failure_raises_splash_connection_error() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        raise httpx.ConnectError("connection refused", request=request)
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        raise httpx2.ConnectError("connection refused", request=request)
 
     client, http_client = _client(handler)
     try:
@@ -307,8 +307,8 @@ def test_connection_failure_raises_splash_connection_error() -> None:
 
 
 def test_models_lists_the_resident_model() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(
             200,
             json={
                 "object": "list",
@@ -334,8 +334,8 @@ def test_models_lists_the_resident_model() -> None:
 
 
 def test_health_reports_the_server_status() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json={"status": "ok"})
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, json={"status": "ok"})
 
     client, http_client = _client(handler)
     try:
@@ -345,8 +345,8 @@ def test_health_reports_the_server_status() -> None:
 
 
 def test_health_is_false_when_the_server_is_down() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        raise httpx.ConnectError("connection refused", request=request)
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        raise httpx2.ConnectError("connection refused", request=request)
 
     client, http_client = _client(handler)
     try:
@@ -356,7 +356,7 @@ def test_health_is_false_when_the_server_is_down() -> None:
 
 
 def test_ask_stream_yields_the_answer_text() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx2.Request) -> httpx2.Response:
         body = json.loads(request.content)
         assert body["stream"] is True
         events = [
@@ -383,7 +383,7 @@ def test_ask_stream_yields_the_answer_text() -> None:
             },
         ]
         payload = b"".join(b"data: " + json.dumps(e).encode() + b"\n\n" for e in events)
-        return httpx.Response(200, content=payload + b"data: [DONE]\n\n")
+        return httpx2.Response(200, content=payload + b"data: [DONE]\n\n")
 
     client, http_client = _client(handler)
     try:
@@ -395,7 +395,7 @@ def test_ask_stream_yields_the_answer_text() -> None:
 
 
 def test_ask_stream_leaves_the_reasoning_trace_out() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx2.Request) -> httpx2.Response:
         events = [
             {
                 "id": "c",
@@ -413,7 +413,7 @@ def test_ask_stream_leaves_the_reasoning_trace_out() -> None:
             },
         ]
         payload = b"".join(b"data: " + json.dumps(e).encode() + b"\n\n" for e in events)
-        return httpx.Response(200, content=payload + b"data: [DONE]\n\n")
+        return httpx2.Response(200, content=payload + b"data: [DONE]\n\n")
 
     client, http_client = _client(handler)
     try:
@@ -425,11 +425,11 @@ def test_ask_stream_leaves_the_reasoning_trace_out() -> None:
 
 
 def test_async_client_asks() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json=_completion_payload())
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, json=_completion_payload())
 
     async def run() -> Reply:
-        http_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        http_client = httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
         client = AsyncSplashClient(BASE_URL, http_client=http_client)
         try:
             return await client.ask("ping")
@@ -443,7 +443,7 @@ def test_async_client_asks() -> None:
 
 
 def test_async_client_streams() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx2.Request) -> httpx2.Response:
         event = {
             "id": "c",
             "object": "chat.completion.chunk",
@@ -452,10 +452,10 @@ def test_async_client_streams() -> None:
             "choices": [{"index": 0, "delta": {"content": "hi"}}],
         }
         payload = b"data: " + json.dumps(event).encode() + b"\n\n" + b"data: [DONE]\n\n"
-        return httpx.Response(200, content=payload)
+        return httpx2.Response(200, content=payload)
 
     async def run() -> list[str]:
-        http_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        http_client = httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
         client = AsyncSplashClient(BASE_URL, http_client=http_client)
         try:
             return [chunk async for chunk in client.ask_stream("ping")]
@@ -466,11 +466,11 @@ def test_async_client_streams() -> None:
 
 
 def test_async_client_raises_on_an_api_error() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(400, json={"error": {"message": "bad request"}})
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(400, json={"error": {"message": "bad request"}})
 
     async def run() -> None:
-        http_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        http_client = httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
         client = AsyncSplashClient(BASE_URL, http_client=http_client)
         try:
             await client.ask("x")
@@ -485,11 +485,11 @@ def test_async_client_raises_on_an_api_error() -> None:
 
 
 def test_async_client_lists_the_models() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json={"data": [{"id": "m"}]})
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, json={"data": [{"id": "m"}]})
 
     async def run() -> list[str]:
-        http_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        http_client = httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
         client = AsyncSplashClient(BASE_URL, http_client=http_client)
         try:
             return await client.models()
@@ -500,11 +500,11 @@ def test_async_client_lists_the_models() -> None:
 
 
 def test_async_client_reports_a_connection_failure() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        raise httpx.ConnectError("connection refused", request=request)
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        raise httpx2.ConnectError("connection refused", request=request)
 
     async def run() -> None:
-        http_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        http_client = httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
         client = AsyncSplashClient(BASE_URL, http_client=http_client)
         try:
             await client.ask("x")
@@ -518,11 +518,11 @@ def test_async_client_reports_a_connection_failure() -> None:
 def test_a_refused_connection_is_retried() -> None:
     calls: list[int] = []
 
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx2.Request) -> httpx2.Response:
         calls.append(1)
         if len(calls) == 1:
-            raise httpx.ConnectError("connection refused", request=request)
-        return httpx.Response(200, json=_completion_payload())
+            raise httpx2.ConnectError("connection refused", request=request)
+        return httpx2.Response(200, json=_completion_payload())
 
     client, http_client = _client(handler)
     try:
@@ -539,10 +539,10 @@ def test_a_refused_connection_is_retried() -> None:
 def test_a_refused_connection_is_retried_when_streaming() -> None:
     calls: list[int] = []
 
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx2.Request) -> httpx2.Response:
         calls.append(1)
         if len(calls) == 1:
-            raise httpx.ConnectError("connection refused", request=request)
+            raise httpx2.ConnectError("connection refused", request=request)
         event = {
             "id": "c",
             "object": "chat.completion.chunk",
@@ -551,7 +551,7 @@ def test_a_refused_connection_is_retried_when_streaming() -> None:
             "choices": [{"index": 0, "delta": {"content": "hi"}}],
         }
         payload = b"data: " + json.dumps(event).encode() + b"\n\n" + b"data: [DONE]\n\n"
-        return httpx.Response(200, content=payload)
+        return httpx2.Response(200, content=payload)
 
     client, http_client = _client(handler)
     try:
@@ -564,8 +564,8 @@ def test_a_refused_connection_is_retried_when_streaming() -> None:
 
 
 def test_a_read_timeout_is_a_connection_error() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        raise httpx.ReadTimeout("timed out", request=request)
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        raise httpx2.ReadTimeout("timed out", request=request)
 
     client, http_client = _client(handler)
     try:
@@ -576,8 +576,8 @@ def test_a_read_timeout_is_a_connection_error() -> None:
 
 
 def test_a_stream_that_fails_raises() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        raise httpx.ReadTimeout("timed out", request=request)
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        raise httpx2.ReadTimeout("timed out", request=request)
 
     client, http_client = _client(handler)
     try:
@@ -596,11 +596,11 @@ def test_the_async_client_closes_its_connection() -> None:
 
 
 def test_the_async_client_can_be_used_as_a_context_manager() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json=_completion_payload())
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, json=_completion_payload())
 
     async def run() -> None:
-        http_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        http_client = httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
         async with AsyncSplashClient(BASE_URL, http_client=http_client) as client:
             assert await client.ask("ping") == "pong"
         await http_client.aclose()
@@ -609,11 +609,11 @@ def test_the_async_client_can_be_used_as_a_context_manager() -> None:
 
 
 def test_the_async_client_reports_a_server_that_is_down() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        raise httpx.ConnectError("connection refused", request=request)
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        raise httpx2.ConnectError("connection refused", request=request)
 
     async def run() -> bool:
-        http_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        http_client = httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
         client = AsyncSplashClient(BASE_URL, http_client=http_client)
         try:
             assert await client.health() is False
@@ -625,11 +625,11 @@ def test_the_async_client_reports_a_server_that_is_down() -> None:
 
 
 def test_an_async_stream_that_fails_raises() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        raise httpx.ReadTimeout("timed out", request=request)
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        raise httpx2.ReadTimeout("timed out", request=request)
 
     async def run() -> None:
-        http_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        http_client = httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
         client = AsyncSplashClient(BASE_URL, http_client=http_client)
         try:
             [chunk async for chunk in client.ask_stream("x")]
@@ -641,8 +641,8 @@ def test_an_async_stream_that_fails_raises() -> None:
 
 
 def test_waiting_for_a_server_that_stays_down_gives_up() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        raise httpx.ConnectError("connection refused", request=request)
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        raise httpx2.ConnectError("connection refused", request=request)
 
     client, http_client = _client(handler)
     try:
@@ -652,8 +652,8 @@ def test_waiting_for_a_server_that_stays_down_gives_up() -> None:
 
 
 def test_a_response_that_is_not_json_gives_an_empty_answer() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, text="not json")
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, text="not json")
 
     client, http_client = _client(handler)
     try:
@@ -663,9 +663,9 @@ def test_a_response_that_is_not_json_gives_an_empty_answer() -> None:
 
 
 def test_ask_stream_skips_the_lines_that_carry_nothing() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx2.Request) -> httpx2.Response:
         payload = b'data: not json\n\n: keepalive\n\ndata: {"choices": []}\n\ndata: [DONE]\n\n'
-        return httpx.Response(200, content=payload)
+        return httpx2.Response(200, content=payload)
 
     client, http_client = _client(handler)
     try:
@@ -677,10 +677,10 @@ def test_ask_stream_skips_the_lines_that_carry_nothing() -> None:
 
 
 def test_the_client_can_be_used_as_a_context_manager() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json=_completion_payload())
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, json=_completion_payload())
 
-    http_client = httpx.Client(transport=httpx.MockTransport(handler))
+    http_client = httpx2.Client(transport=httpx2.MockTransport(handler))
     with SplashClient(BASE_URL, http_client=http_client) as client:
         assert client.ask("ping") == "pong"
     http_client.close()
@@ -695,9 +695,9 @@ def test_closing_the_client_closes_its_connection() -> None:
 def test_api_key_is_sent_as_a_bearer_token() -> None:
     seen: dict[str, str] = {}
 
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx2.Request) -> httpx2.Response:
         seen["authorization"] = request.headers.get("authorization", "")
-        return httpx.Response(200, json=_completion_payload())
+        return httpx2.Response(200, json=_completion_payload())
 
     client, http_client = _client(handler, api_key="s3cret")
     try:

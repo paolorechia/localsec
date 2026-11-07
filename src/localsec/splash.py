@@ -27,7 +27,7 @@ import time
 from collections.abc import AsyncIterator, Iterator, Mapping, Sequence
 from typing import Any, Final
 
-import httpx
+import httpx2
 
 __all__ = [
     "DEFAULT_BASE_URL",
@@ -189,7 +189,7 @@ def _as_mapping(value: object) -> Mapping[str, Any]:
     return value if isinstance(value, Mapping) else {}
 
 
-def _decode_json(response: httpx.Response) -> Mapping[str, Any]:
+def _decode_json(response: httpx2.Response) -> Mapping[str, Any]:
     try:
         payload = response.json()
     except ValueError:
@@ -245,7 +245,7 @@ def _parse_sse_line(line: str) -> str | None:
     return _delta_text(payload)
 
 
-def _raise_for_status(response: httpx.Response) -> None:
+def _raise_for_status(response: httpx2.Response) -> None:
     if response.is_success:
         return
     payload = _decode_json(response)
@@ -304,7 +304,7 @@ class SplashClient(_SplashTransport):
         timeout: float = DEFAULT_TIMEOUT,
         max_retries: int = DEFAULT_MAX_RETRIES,
         retry_backoff: float = DEFAULT_RETRY_BACKOFF,
-        http_client: httpx.Client | None = None,
+        http_client: httpx2.Client | None = None,
     ) -> None:
         """Create a client, reusing ``http_client`` when one is given."""
         super().__init__(
@@ -314,7 +314,7 @@ class SplashClient(_SplashTransport):
             retry_backoff=retry_backoff,
         )
         self._owns_client = http_client is None
-        self._client = http_client or httpx.Client(timeout=timeout, trust_env=False)
+        self._client = http_client or httpx2.Client(timeout=timeout, trust_env=False)
 
     def close(self) -> None:
         """Close the underlying HTTP client, if this client owns it."""
@@ -334,7 +334,7 @@ class SplashClient(_SplashTransport):
         method: str,
         path: str,
         body: Mapping[str, Any] | None = None,
-    ) -> httpx.Response:
+    ) -> httpx2.Response:
         """Send a request, retrying while the server refuses connections.
 
         Splash refuses a connection rather than queueing it once its
@@ -349,14 +349,14 @@ class SplashClient(_SplashTransport):
                     json=body,
                     headers=self.headers(),
                 )
-            except httpx.ConnectError as exc:
+            except httpx2.ConnectError as exc:
                 if attempt < self._max_retries:
                     time.sleep(self._backoff(attempt))
                     continue
                 raise SplashConnectionError(
                     f"could not reach the Splash server at {self.base_url}: {exc}"
                 ) from exc
-            except httpx.HTTPError as exc:
+            except httpx2.HTTPError as exc:
                 raise SplashConnectionError(
                     f"could not reach the Splash server at {self.base_url}: {exc}"
                 ) from exc
@@ -370,7 +370,7 @@ class SplashClient(_SplashTransport):
         """Return whether the server is up and serving."""
         try:
             response = self._client.get(self.url(_HEALTH_PATH), headers=self.headers())
-        except httpx.HTTPError:
+        except httpx2.HTTPError:
             return False
         return response.status_code == 200
 
@@ -490,13 +490,13 @@ class SplashClient(_SplashTransport):
                             started = True
                             yield text
                 return
-            except httpx.ConnectError as exc:
+            except httpx2.ConnectError as exc:
                 if started or attempt >= self._max_retries:
                     raise SplashConnectionError(
                         f"could not reach the Splash server at {self.base_url}: {exc}"
                     ) from exc
                 time.sleep(self._backoff(attempt))
-            except httpx.HTTPError as exc:
+            except httpx2.HTTPError as exc:
                 raise SplashConnectionError(
                     f"could not reach the Splash server at {self.base_url}: {exc}"
                 ) from exc
@@ -513,7 +513,7 @@ class AsyncSplashClient(_SplashTransport):
         timeout: float = DEFAULT_TIMEOUT,
         max_retries: int = DEFAULT_MAX_RETRIES,
         retry_backoff: float = DEFAULT_RETRY_BACKOFF,
-        http_client: httpx.AsyncClient | None = None,
+        http_client: httpx2.AsyncClient | None = None,
     ) -> None:
         """Create a client, reusing ``http_client`` when one is given."""
         super().__init__(
@@ -523,7 +523,7 @@ class AsyncSplashClient(_SplashTransport):
             retry_backoff=retry_backoff,
         )
         self._owns_client = http_client is None
-        self._client = http_client or httpx.AsyncClient(timeout=timeout, trust_env=False)
+        self._client = http_client or httpx2.AsyncClient(timeout=timeout, trust_env=False)
 
     async def aclose(self) -> None:
         """Close the underlying HTTP client, if this client owns it."""
@@ -543,7 +543,7 @@ class AsyncSplashClient(_SplashTransport):
         method: str,
         path: str,
         body: Mapping[str, Any] | None = None,
-    ) -> httpx.Response:
+    ) -> httpx2.Response:
         """Send a request, retrying while the server refuses connections."""
         for attempt in range(self._max_retries + 1):
             try:
@@ -553,14 +553,14 @@ class AsyncSplashClient(_SplashTransport):
                     json=body,
                     headers=self.headers(),
                 )
-            except httpx.ConnectError as exc:
+            except httpx2.ConnectError as exc:
                 if attempt < self._max_retries:
                     await asyncio.sleep(self._backoff(attempt))
                     continue
                 raise SplashConnectionError(
                     f"could not reach the Splash server at {self.base_url}: {exc}"
                 ) from exc
-            except httpx.HTTPError as exc:
+            except httpx2.HTTPError as exc:
                 raise SplashConnectionError(
                     f"could not reach the Splash server at {self.base_url}: {exc}"
                 ) from exc
@@ -574,7 +574,7 @@ class AsyncSplashClient(_SplashTransport):
         """Return whether the server is up and serving."""
         try:
             response = await self._client.get(self.url(_HEALTH_PATH), headers=self.headers())
-        except httpx.HTTPError:
+        except httpx2.HTTPError:
             return False
         return response.status_code == 200
 
@@ -694,13 +694,13 @@ class AsyncSplashClient(_SplashTransport):
                             started = True
                             yield text
                 return
-            except httpx.ConnectError as exc:
+            except httpx2.ConnectError as exc:
                 if started or attempt >= self._max_retries:
                     raise SplashConnectionError(
                         f"could not reach the Splash server at {self.base_url}: {exc}"
                     ) from exc
                 await asyncio.sleep(self._backoff(attempt))
-            except httpx.HTTPError as exc:
+            except httpx2.HTTPError as exc:
                 raise SplashConnectionError(
                     f"could not reach the Splash server at {self.base_url}: {exc}"
                 ) from exc
