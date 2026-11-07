@@ -68,7 +68,11 @@ def console_approver(request: ApprovalRequest) -> Decision:
     print(f"  {request.detail}")
     for name, value in request.arguments.items():
         print(f"  {name}: {value}")
-    answer = input("Allow? [y] once  [a] always  [n] no: ").strip().lower()
+    try:
+        answer = input("Allow? [y] once  [a] always  [n] no: ").strip().lower()
+    except (EOFError, OSError):
+        # There is nobody to answer, so the answer is no.
+        return Decision.DENY
     if answer == "a":
         return Decision.ALLOW_ALWAYS
     if answer == "y":

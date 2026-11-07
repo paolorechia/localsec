@@ -2,15 +2,17 @@
 
 An agentic system.
 
-This repository is the base Python structure for the project: a uv-managed
-package with a `src/` layout, a test suite, and the standard linting, type
-checking, and CI tooling. There is no domain logic here yet — the agent
-runtime, its dependencies, and its interfaces are still to be designed.
+This repository is a uv-managed package with a `src/` layout, a test suite, and
+the standard linting, type checking, and CI tooling. It holds the agent
+runtime the agents share, the client for the local inference server, and the
+security patching agents.
 
 ## Requirements
 
 - Python 3.12+
 - [uv](https://docs.astral.sh/uv/)
+- [Splash](https://formulae.brew/sh/splash) — the local inference server
+- Docker — the tests the agents write run in a container
 
 ## Setup
 
@@ -30,6 +32,14 @@ editable mode along with the development tools.
 │   ├── __main__.py        # `python -m localsec`
 │   ├── cli.py             # `localsec` console entry point
 │   ├── splash.py          # client for the Splash inference server
+│   ├── runtime/           # what the agents share
+│   │   ├── provider.py    # the model, and the resident model lookup
+│   │   ├── approvals.py   # the gate every change goes through
+│   │   ├── audit.py       # the record of what was done
+│   │   ├── tools.py       # tools, and the policy that says which change things
+│   │   └── sandbox.py     # running code in a throwaway container
+│   ├── agents/            # the agents themselves
+│   │   └── patching/      # triage, plan, apply, verify
 │   └── py.typed           # marks the package as typed (PEP 561)
 └── tests/                 # test suite
 ```
@@ -153,10 +163,114 @@ server answers, which is useful at agent startup.
 The server also serves `/v1/messages` (Anthropic's schema) and `/v1/responses`;
 this module covers the OpenAI-compatible chat endpoints only.
 
+## The agent runtime
+
+`localsec.runtime` is what the agents share: the model, the tools, and the
+gate that every change has to pass.
+
+**The model.** `ModelSession` looks up whichever model the server holds
+resident and hands back a Pydantic AI model bound to it:
+
+```python
+from localsec.runtime.provider import ModelSession
+
+async with ModelSession() as session:
+    agent = Agent(session.model, instructions="...")
+```
+
+The client is built with `trust_env=False`, so a proxy in the environment
+never redirects a request meant for the local server.
+
+**The gate.** Every tool is either read-only or mutating. A mutating tool
+asks the gate first, and **a gate with no approver declines** — an unattended
+agent cannot change anything by accident. A declined tool returns `DECLINED:`
+to the model rather than failing the run, so the agent can try something
+else:
+
+```python
+from localsec.runtime.approvals import ApprovalGate, console_approver
+
+gate = ApprovalGate(console_approver)  # ask on the terminal
+gate = ApprovalGate()  # decline everything
+```
+
+**The audit log.** One JSON object per line, each with a UTC timestamp:
+
+```python
+from localsec.runtime.audit import AuditLog
+
+audit = AuditLog("audit.jsonl")
+audit.record("triage_started", description="...")
+```
+
+**The sandbox.** `DockerSandbox` runs a command in a throwaway container with
+a copy of the workspace. The copy rather than a bind mount is deliberate: a
+bind mount on macOS goes through a filesystem shim and is slow enough to make
+a test run feel broken.
+
+## Security patching
+
+`localsec.agents.patching` has three agents and a run that drives them:
+
+| Agent | Job | Result |
+| --- | --- | --- |
+| `TriageAgent` | finds the vulnerable code | `Findings` |
+| `PatchAgent` | writes the fix | `PatchPlan` |
+| `VerifyAgent` | checks the fix holds | `Verification` |
+
+The run goes: triage → plan → apply → verify, and when the verification
+fails it asks the patch agent for a revision and goes round again, up to
+`max_rounds`.
+
+The agents are read-only. The run does the changing, so every write goes
+through the approval gate with the exact text of the change in front of the
+operator.
+
+```bash
+uv run localsec patch "the archive extraction helper writes outside the destination" \
+  --workspace ./my-project \
+  --test-command "pip install --quiet pytest && pytest -q" \
+  --audit audit.jsonl
+```
+
+Without `--yes` the operator is asked before each change. With it, every
+change is approved as it happens — which is the only way to run unattended,
+and the reason the gate declines by default.
+
+The agents can only touch the workspace: every path they name is resolved
+inside it, and anything that points outside — `../`, an absolute path, a
+symlink — is refused.
+
+**Structured output.** The agents fill in typed results rather than prose.
+The server compiles the schema into a grammar, so the fields come back as
+they were asked for:
+
+```python
+@dataclass
+class Finding:
+    title: str
+    severity: str
+    file: str
+    line: int | None = None
+    cve: str | None = None
+    description: str = ""
+```
+
+**The test command.** The operator's command wins over the one the patch
+agent proposes, because the operator knows what the container holds and the
+agent is guessing. The container is bare, so the command usually has to
+install what the tests need:
+
+```bash
+--test-command "pip install --quiet pytest && pytest -q"
+```
+
 ## Dependencies
 
-The project currently depends only on `httpx`, used by the Splash client.
-Add whatever else the agent runtime needs as it gets designed:
+The project depends on `httpx2`, used by the Splash client, and
+`pydantic-ai-slim[openai]`, which is the agent framework. The `slim` extra
+keeps the tree to the OpenAI-compatible providers — the full `pydantic-ai`
+package pulls in around a hundred packages that this project does not use.
 
 ```bash
 uv add <package>        # runtime dependency

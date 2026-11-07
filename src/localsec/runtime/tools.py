@@ -99,6 +99,14 @@ class ToolRegistry:
         """Return the tools to hand to an agent, gated where needed."""
         return [self._gated(spec) for spec in self._tools.values()]
 
+    def function(self, name: str) -> Callable[..., Any]:
+        """Return one tool, gated where needed.
+
+        This is how a run calls a tool itself, rather than leaving it to the
+        model: the gate is asked in exactly the same way.
+        """
+        return self._gated(self._tools[name])
+
     def _gated(self, spec: ToolSpec) -> Callable[..., Any]:
         """Return the tool, asking the gate first when it changes anything."""
         gate = self._gate

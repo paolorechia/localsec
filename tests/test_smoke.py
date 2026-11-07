@@ -23,6 +23,18 @@ def test_main_runs_without_arguments() -> None:
     assert main([]) == 0
 
 
+def test_the_patch_command_is_offered() -> None:
+    parser = build_parser()
+
+    args = parser.parse_args(
+        ["patch", "a bug", "--workspace", "/tmp/repo", "--yes"],
+    )
+
+    assert args.command == "patch"
+    assert args.description == "a bug"
+    assert args.yes is True
+
+
 def test_module_entry_point_runs() -> None:
     result = subprocess.run(
         [sys.executable, "-m", "localsec", "--version"],

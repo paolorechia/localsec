@@ -11,6 +11,7 @@ from localsec.runtime.approvals import (
     ApprovalGate,
     ApprovalRequest,
     Decision,
+    console_approver,
 )
 from localsec.runtime.audit import AuditLog
 
@@ -60,6 +61,35 @@ def test_allowing_a_tool_always_remembers_it() -> None:
     # The second write is not asked about, the run is.
     assert [request.tool for request in calls] == ["write_file", "run_tests"]
     assert gate.always_allowed == frozenset({"write_file", "run_tests"})
+
+
+def test_the_console_approver_declines_when_nobody_can_answer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def no_stdin(_prompt: str) -> str:
+        raise EOFError
+
+    monkeypatch.setattr("builtins.input", no_stdin)
+
+    assert console_approver(_request()) is Decision.DENY
+
+
+def test_the_console_approver_allows_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("builtins.input", lambda _prompt: "y")
+
+    assert console_approver(_request()) is Decision.ALLOW
+
+
+def test_the_console_approver_allows_always(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("builtins.input", lambda _prompt: "a")
+
+    assert console_approver(_request()) is Decision.ALLOW_ALWAYS
+
+
+def test_the_console_approver_declines_anything_else(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("builtins.input", lambda _prompt: "maybe")
+
+    assert console_approver(_request()) is Decision.DENY
 
 
 def test_every_decision_is_audited(tmp_path: Path) -> None:
