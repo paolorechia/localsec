@@ -5,7 +5,9 @@ description = "An agentic system"
 readme = "README.md"
 authors = [{ name = "Paolo Rechia", email = "paolorechia@gmail.com" }]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "httpx>=0.28.1",
+]
 
 [project.scripts]
 localsec = "localsec.cli:main"
